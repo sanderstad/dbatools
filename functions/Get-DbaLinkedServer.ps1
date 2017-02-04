@@ -56,21 +56,7 @@ Returns all Linked Servers for the SQL Server instance DEV01
 
             foreach ($ls in $server.LinkedServers)
             {               
-
-                    $output = [PSCustomObject]@{
-                        ComputerName = $server.NetName
-                        SqlInstance = $server.InstanceName
-		                LinkedServerName = $ls.Name
-                        RemoteServer = $ls.DataSource
-                        ProductName = $ls.ProductName 
-                        Impersonate = $ls.LinkedServerLogins.Impersonate
-                        RemoteUser = $ls.LinkedServerLogins.remoteuser
-                        Rpc = $ls.Rpc
-                        RpcOut = $ls.RpcOut
-                        LinkedServer = $ls
-                        }
-     
-                    Select-DefaultField -InputObject $output -Property ComputerName, SqlInstance, LinkedServerName, RemoteServer, ProductName, Impersonate, RemoteUser, Rpc, RpcOut
+				Select-DefaultField -InputObject $ls -Property Parent.NetName as ComputerName, Parent.InstanceName as SqlInstance, LinkedServerName, RemoteServer, ProductName, Impersonate, RemoteUser, Rpc, RpcOut
             } 
         } 
     } 
