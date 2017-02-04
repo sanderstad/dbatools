@@ -55,8 +55,9 @@ Returns all Linked Servers for the SQL Server instance DEV01
 	        }
 
             foreach ($ls in $server.LinkedServers)
-            {               
-				Select-DefaultField -InputObject $ls -Property Parent.NetName as ComputerName, Parent.InstanceName as SqlInstance, LinkedServerName, RemoteServer, ProductName, Impersonate, RemoteUser, Rpc, RpcOut
+			{
+				$ls
+				#Select-DefaultField -InputObject $ls -Property Parent.NetName as ComputerName, Parent.InstanceName as SqlInstance, LinkedServerName, RemoteServer, ProductName, Impersonate, RemoteUser, Rpc, RpcOut
             } 
         } 
     } 
