@@ -7,18 +7,11 @@ Sets SQL Server 'Max Server Memory' configuration setting to a new value then di
 .DESCRIPTION
 Sets SQL Server max memory then displays information relating to SQL Server Max Memory configuration settings. 
 
-Inspired by Jonathan Kehayias's post about SQL Server Max memory (http://bit.ly/sqlmemcalc), this uses a formula to 
-determine the default optimum RAM to use, then sets the SQL max value to that number.
-
-Jonathan notes that the formula used provides a *general recommendation* that doesn't account for everything that may 
-be going on in your specific environment. 
-
-
 .PARAMETER SqlServer
 Allows you to specify a comma separated list of servers to query.
 
 .PARAMETER MaxMb
-Specifies the max megabytes
+Specifies the max megabytes. If you don't know what number to set, you can pipe in the results from Test-DbaMaxMemory
 
 .PARAMETER SqlCredential 
 Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted. To use:
@@ -64,10 +57,10 @@ of the server (think 2147483647), then pipe those to Set-DbaMaxMemory and use th
 	[CmdletBinding()]
 	Param (
 		[parameter(Position = 0)]
-		[Alias("ServerInstance", "SqlInstance", "SqlServers")]
+		[Alias("ServerInstance", "SqlInstance", "SqlServers","Server")]
 		[object]$SqlServer,
-		[parameter(Position = 1)]
-		[int]$MaxMb,
+		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true)]
+		[int]$MaxMB,
 		[Parameter(ValueFromPipeline = $True)]
 		[object]$Collection,
 		[System.Management.Automation.PSCredential]$SqlCredential

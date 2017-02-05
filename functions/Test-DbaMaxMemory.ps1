@@ -63,7 +63,7 @@ Find all servers in CMS that have Max SQL memory set to higher than the total me
 			{
 				# Get number of instances running
 				$ipaddr = Resolve-SqlIpAddress -SqlServer $servername
-				$sqls = Get-Service -ComputerName $ipaddr | Where-Object { $_.DisplayName -like 'SQL Server (*' -and $_.Status -eq 'Running' }
+				$sqls = Get-Service -ComputerName $ipaddr | Where-Object { $_.DisplayName -like 'SQL Server (*' -and $_.StartType -ne 'Disabled' }
 				$sqlcount = $sqls.count
 			}
 			catch
@@ -77,7 +77,7 @@ Find all servers in CMS that have Max SQL memory set to higher than the total me
 			
 			if($null -eq $server)
             {
-                continue;
+                continue
             }
 
 		
@@ -117,7 +117,8 @@ Find all servers in CMS that have Max SQL memory set to higher than the total me
 				TotalMB = $totalmemory
 				SqlMaxMB = $maxmemory
 				RecommendedMB = $recommendedMax
-			}
+				MaxMB = $recommendedMax
+			} | Select-DefaultView -Exclude MaxMB
 		}
 	}
 }
