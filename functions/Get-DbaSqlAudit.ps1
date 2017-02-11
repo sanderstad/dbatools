@@ -98,20 +98,20 @@ SQL Audit Files will be imported in the the centralsqlserver into the securityau
 		$SqlServer = $sourceserver.DomainInstanceName
 		$destination = $destserver.DomainInstanceName
 		
-		if ($sourceserver.versionMajor -lt 9 -or $destserver.versionMajor -lt 9)
+		if ($sourceserver.versionMajor -lt 10 -or $destserver.versionMajor -lt 10)
 		{
-			throw "Server Triggers are only supported in SQL Server 2005 and above. Quitting."
+			throw "SQL Security Audit features are only supported in SQL Server 2008 and above. Quitting."
 		}
 		
-		$servertriggers = $sourceserver.Triggers
-		$desttriggers = $destserver.Triggers
+		$servertriggers = $sourceserver.Audits
+		$desttriggers = $destserver.Audits
 		
 	}
 	PROCESS
 	{
-		foreach ($trigger in $servertriggers)
+		foreach ($audit in $serverAudits)
 		{
-			$triggername = $trigger.name
+			$auditname = $audit.name
 			if ($triggers.length -gt 0 -and $triggers -notcontains $triggername) { continue }
 			
 			if ($desttriggers.name -contains $triggername)
