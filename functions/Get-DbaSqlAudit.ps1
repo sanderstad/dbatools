@@ -29,6 +29,22 @@ Destination table where the sqlaudit files that where copied will be imported
 This parameter in conjunction with the -Import parameter will move the sqlaudit files to an Archive folder after being imported.  
 If the -Archive parameter is not used the sqlaudit files will be deleted
 
+.PARAMETER SourceSqlCredential
+Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted. To use:
+
+$scred = Get-Credential, then pass $scred object to the -SourceSqlCredential parameter. 
+
+Windows Authentication will be used if DestinationSqlCredential is not specified. SQL Server does not accept Windows credentials being passed as credentials. 	
+To connect as a different Windows user, run PowerShell as that user.
+
+.PARAMETER DestinationSqlCredential
+Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted. To use:
+
+$dcred = Get-Credential, then pass this $dcred to the -DestinationSqlCredential parameter. 
+
+Windows Authentication will be used if DestinationSqlCredential is not specified. SQL Server does not accept Windows credentials being passed as credentials. 	
+To connect as a different Windows user, run PowerShell as that user.
+
 .NOTES 
 Original Author: Garry Bargsley (@gbargsley, blog.garrybargsley.com)
 
@@ -61,6 +77,8 @@ SQL Audit Files will be imported in the the centralsqlserver into the securityau
 		[parameter(Mandatory = $true)]
 		[object]$SqlServer,
 		[parameter(Mandatory = $true)]
+		[System.Management.Automation.PSCredential]$SourceSqlCredential,
+		[System.Management.Automation.PSCredential]$DestinationSqlCredential,
 		[object]$Path,
 		[switch]$Import,
 		[object]$Destination,
@@ -68,16 +86,16 @@ SQL Audit Files will be imported in the the centralsqlserver into the securityau
         [string]$Table,
         [switch]$Archive
 	)
-	DynamicParam { if ($SqlServer) { return (Get-DbaSqlAudit -SqlServer $Source -SqlCredential $SourceSqlCredential) } }
+	DynamicParam { if ($SqlServer) { return (Get-ParamSqlServerAudits -SqlServer $SqlServer -SqlCredential $SourceSqlCredential) } }
 	
 	BEGIN
 	{
-		$triggers = $psboundparameters.Triggers
+		$audits = $psboundparameters.Audits
 		
-		$sourceserver = Connect-SqlServer -SqlServer $Source -SqlCredential $SourceSqlCredential
+		$sourceserver = Connect-SqlServer -SqlServer $SqlServer -SqlCredential $SourceSqlCredential
 		$destserver = Connect-SqlServer -SqlServer $Destination -SqlCredential $DestinationSqlCredential
 		
-		$source = $sourceserver.DomainInstanceName
+		$SqlServer = $sourceserver.DomainInstanceName
 		$destination = $destserver.DomainInstanceName
 		
 		if ($sourceserver.versionMajor -lt 9 -or $destserver.versionMajor -lt 9)
@@ -145,6 +163,6 @@ SQL Audit Files will be imported in the the centralsqlserver into the securityau
 	{
 		$sourceserver.ConnectionContext.Disconnect()
 		$destserver.ConnectionContext.Disconnect()
-		If ($Pscmdlet.ShouldProcess("console", "Showing finished message")) { Write-Output "Server trigger migration finished" }
+		If ($Pscmdlet.ShouldProcess("console", "Showing finished message")) { Write-Output "Audit copy process finished" }
 	}
 }
