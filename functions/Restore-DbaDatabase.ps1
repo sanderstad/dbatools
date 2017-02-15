@@ -131,7 +131,7 @@ Scans all the backup files in \\server2\backups stored in an Ola Hallengren styl
  filters them and restores the database to the c:\restores folder on server1\instance1 up to 11:19 23/12/2016
 
 .EXAMPLE
-Restore-DbaDatabase -SqlServer server1\instance1 -Path \\server2\backups -DestinationDataDirectory c:\restores -OutputScriptOnly | Out-File -Filepath c:\scripts\restore.sql
+Restore-DbaDatabase -SqlServer server1\instance1 -Path \\server2\backups -DestinationDataDirectory c:\restores -OutputScriptOnly | Select-Object -ExpandPropert Tsql | Out-File -Filepath c:\scripts\restore.sql
 
 Scans all the backup files in \\server2\backups stored in an Ola Hallengren style folder structure,
  filters them and generate the T-SQL Scripts to restore the database to the latest point in time, 
@@ -217,9 +217,17 @@ folder for those file types as defined on the target instance.
         {
             $UseDestinationDefaultDirectories = $false 
         }
-   
-    }
-    PROCESS
+		
+		try
+		{
+			$Server = Connect-SqlServer -SqlServer $SqlServer -SqlCredential $SqlCredential
+		}
+		catch
+		{
+			Write-Warning "$FunctionName - Cannot connect to $SqlServer" -WarningAction Stop
+		}
+	}
+	PROCESS
     {
         
         foreach ($f in $path)
@@ -229,16 +237,35 @@ folder for those file types as defined on the target instance.
             {
                 Write-Verbose "$FunctionName : Paths passed in" 
                 foreach ($p in $f)
-                {  
-                    if ($XpDirTree)
+				{
+					Write-Verbose "Checking for directory"
+					$sql = "EXEC master.dbo.xp_fileexist '$p'"
+					Write-Debug sql
+					
+					$fileexist = $server.ConnectionContext.ExecuteWithResults($sql).Tables.Rows
+					if ($fileexist['File is a Directory'] -eq 1)
+					{
+						Write-Verbose "Path is a directory"
+						$isfolder = $true
+					}
+					else
+					{
+						Write-Verbose "Path is a file"
+						$isfolder = $false
+					}
+					
+					
+					if ($XpDirTree)
                     {
                         $BackupFiles += Get-XPDirTreeRestoreFile -Path $p -SqlServer $SqlServer -SqlCredential $SqlCredential
                     }
-                    elseif ((Get-Item $p).PSIsContainer -ne $true)
+                    elseif ($isfolder -ne $true)
                     {
-                        Write-Verbose "$FunctionName : Single file"
-                        $BackupFiles += Get-item $p
-                    } 
+						Write-Verbose "$FunctionName : Single file"
+						
+						$file = Get-DirectoryRestoreFile -Path $p -Server $server
+						$BackupFiles += $file
+                    }
                     elseif ($MaintenanceSolutionBackup )
                     {
                         Write-Verbose "$FunctionName : Ola Style Folder"
@@ -248,7 +275,7 @@ folder for those file types as defined on the target instance.
                     {
                         Write-Verbose "$FunctionName : Standard Directory"
                         $FileCheck = $BackupFiles.count
-                        $BackupFiles += Get-DirectoryRestoreFile -Path $p
+                        $BackupFiles += Get-DirectoryRestoreFile -Path $p -Server $server
                         if ((($BackupFiles.count)-$FileCheck) -eq 0)
                         {
                             $BackupFiles += Get-OlaHRestoreFile -Path $p
@@ -268,14 +295,7 @@ folder for those file types as defined on the target instance.
         }
     END
     {
-		try 
-		{
-			$Server = Connect-SqlServer -SqlServer $SqlServer -SqlCredential $SqlCredential	          
-		}
-		catch {
-            $server.ConnectionContext.Disconnect()
-			Write-Warning "$FunctionName - Cannot connect to $SqlServer" -WarningAction Stop
-		}
+		
         if ($null -ne $DatabaseName)
         {
             If (($null -ne $Server.Databases[$DatabaseName]) -and ($WithReplace -eq $false))
@@ -311,6 +331,7 @@ folder for those file types as defined on the target instance.
             {
                 try{
                     $FilteredFiles | Restore-DBFromFilteredArray -SqlServer $SqlServer -DBName $databasename -SqlCredential $SqlCredential -RestoreTime $RestoreTime -DestinationDataDirectory $DestinationDataDirectory -DestinationLogDirectory $DestinationLogDirectory -NoRecovery:$NoRecovery -Replace:$WithReplace -ScriptOnly:$OutputScriptOnly -FileStructure:$FileMapping -VerifyOnly:$VerifyOnly -UseDestinationDefaultDirectories:$UseDestinationDefaultDirectories -ReuseSourceFolderStructure:$ReuseSourceFolderStructure -DestinationFilePrefix:$DestinationFilePrefix
+                    
                     $Completed='successfully'
                 }
                 catch{
