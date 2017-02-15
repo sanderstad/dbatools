@@ -231,8 +231,16 @@ folder for those file types as defined on the target instance.
 		foreach ($f in $path)
 		{
 			
+			if ($f.FullName -ne $null)
+			{
+				$testpath = $f.FullName
+			}
+			else
+			{
+				$testpath = $f
+			}
 			
-			if ($f.StartsWith("\\") -eq $false -and $islocal -ne $true)
+			if ($testpath.StartsWith("\\") -eq $false -and $islocal -ne $true)
 			{
 				# Many internal functions parse using Get-ChildItem. 
 				# We need to use Test-SqlPath and other commands instead
