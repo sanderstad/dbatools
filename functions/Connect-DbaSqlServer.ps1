@@ -1,4 +1,4 @@
-﻿Function Connect-DbaSqlServer
+Function Connect-DbaSqlServer
 {
 <#
 .SYNOPSIS
@@ -159,6 +159,7 @@ Connects with ReadOnly ApplicantionIntent.
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
+		[Alias("ServerInstance", "SqlInstance")]
 		[object]$SqlServer,
 		[Alias("SqlCredential")]
 		[System.Management.Automation.PSCredential]$Credential,

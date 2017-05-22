@@ -1,4 +1,4 @@
-﻿function Measure-DbaBackupThroughput
+function Measure-DbaBackupThroughput
 {
 <#
 .SYNOPSIS
@@ -8,7 +8,7 @@ Determines how quickly SQL Server is backing up databases to media.
 Returns backup history details for some or all databases on a SQL Server. 
 
 Output looks like this
-Server          : sql2016
+SqlInstance     : sql2016
 Database        : SharePoint_Config
 AvgThroughputMB : 1.07
 AvgSizeMB       : 24.17
@@ -24,7 +24,13 @@ SqlInstance name or SMO object representing the SQL Server to connect to.
 This can be a collection and receive pipeline input.
 
 .PARAMETER SqlCredential
-PSCredential object to connect as. If not specified, currend Windows login will be used.
+PSCredential object to connect as. If not specified, current Windows login will be used.
+
+.PARAMETER Database
+The database(s) to process - this list is autopopulated from the server. If unspecified, all databases will be processed.
+
+.PARAMETER Exclude
+The database(s) to exclude - this list is autopopulated from the server
 
 .PARAMETER Type
 By default, this command measures the speed of Full backups. You can also specify Log or Differential.
@@ -35,47 +41,44 @@ Datetime object used to narrow the results to a date
 .PARAMETER Last
 Measure only the last backup
 
-
 .NOTES
 Tags: DisasterRecovery, Backup
-dbatools PowerShell module (https://dbatools.io, clemaire@gmail.com)
-Copyright (C) 2016 Chrissy LeMaire
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.	
+Website: https://dbatools.io
+Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
+License: GNU GPL v3 https://opensource.org/licenses/GPL-3.0
 
 .LINK
 https://dbatools.io/Measure-DbaBackupThroughput
 
 .EXAMPLE
-Measure-DbaBackupThroughput -SqlInstance sqlserver2016a
-Will fill this in
+Measure-DbaBackupThroughput -SqlInstance sql2016
+
+Parses every backup in msdb's backuphistory for stats on all databases
 
 .EXAMPLE
-Measure-DbaBackupThroughput -SqlInstance sqlserver2016a -Databases db1
-Will fill this in
+Measure-DbaBackupThroughput -SqlInstance sql2016 -Database AdventureWorks2014
+
+Parses every backup in msdb's backuphistory for stats on AdventureWorks2014
 	
 .EXAMPLE
 Measure-DbaBackupThroughput -SqlInstance sql2005 -Last
-Full
+
+Processes the last full, diff and log backups every backup for all databases on sql2005
 	
 .EXAMPLE
 Measure-DbaBackupThroughput -SqlInstance sql2005 -Last -Type Log
 	
-.EXAMPLE
-Measure-DbaBackupThroughput -SqlInstance sql2005 -Last -Type Log
+Processes the last log backups every backup for all databases on sql2005
 
 .EXAMPLE
 Measure-DbaBackupThroughput -SqlInstance sql2016 -Since (Get-Date).AddDays(-7)
 	
-Gets info for last week
+Gets backup calculations for the last week
 	
 .EXAMPLE
-Measure-DbaBackupThroughput -SqlInstance sql2016 -Since (Get-Date).AddDays(-365) -Databases bigoldb
+Measure-DbaBackupThroughput -SqlInstance sql2016 -Since (Get-Date).AddDays(-365) -Database bigoldb
 	
-Will fill this in
+Gets backup calculations, limited to the last year and only the bigoldb database
 
 #>
 	[CmdletBinding()]
@@ -83,19 +86,20 @@ Will fill this in
 		[parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
 		[Alias("ServerInstance", "Instance", "SqlServer")]
 		[object[]]$SqlInstance,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
+		[Alias("Credential")]
+		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		$SqlCredential,
+		[Alias("Databases")]
+		[object[]]$Database,
+		[object[]]$Exclude,
 		[datetime]$Since,
 		[switch]$Last,
 		[ValidateSet("Full", "Log", "Differential")]
 		[string]$Type = "Full"
 	)
 	
-	DynamicParam { if ($SqlInstance) { return Get-ParamSqlDatabases -SqlServer $SqlInstance[0] -SqlCredential $SqlCredential } }
-	
-	BEGIN
+	begin
 	{
-		$databases = $psboundparameters.Databases
-		
 		if ($Since)
 		{
 			$Since = $Since.ToString("yyyy-MM-dd HH:mm:ss")
@@ -116,27 +120,32 @@ Will fill this in
 				continue
 			}
 			
-			if (!$databases) { $databases = $server.databases.name }
-						
-			foreach ($database in $databases)
+			if (!$database) { $database = $server.databases.name }
+			
+			
+			if ($exclude) {
+				$database = $database | Where-Object { $_ -notin $exclude }
+			}
+			
+			foreach ($db in $database)
 			{
-				Write-Verbose "Getting backup history for $database"
+				Write-Verbose "Getting backup history for $db"
 				
 				$allhistory = @()
 				
 				# Splatting didnt work
 				if ($since)
 				{	
-					$histories = Get-DbaBackupHistory -SqlServer $server -Databases $database -Last:$last -Since $since | Where-Object Type -eq $Type
+					$histories = Get-DbaBackupHistory -SqlServer $server -Database $db -Since $since | Where-Object Type -eq $Type
 				}
 				else
 				{
-					$histories = Get-DbaBackupHistory -SqlServer $server -Databases $database -Last:$last | Where-Object Type -eq $Type
+					$histories = Get-DbaBackupHistory -SqlServer $server -Database $db -Last:$last | Where-Object Type -eq $Type
 				}
 				
 				foreach ($history in $histories)
 				{
-					$timetaken = New-TimeSpan –Start $history.Start –End $history.End
+					$timetaken = New-TimeSpan -Start $history.Start -End $history.End
 					
 					if ($timetaken.TotalMilliseconds -eq 0)
 					{
@@ -149,7 +158,7 @@ Will fill this in
 					
 					Add-Member -InputObject $history -MemberType Noteproperty -Name MBps -value $throughput
 					
-					$allhistory += $history | Select-Object Server, Database, MBps, TotalSizeMB, Start, End
+					$allhistory += $history | Select-Object ComputerName, InstanceName, SqlInstance, Database, MBps, TotalSizeMB, Start, End
 				}
 				
 				foreach ($db in ($allhistory | Sort-Object Database | Group-Object Database))
@@ -163,7 +172,9 @@ Will fill this in
 					$date = Get-Date
 					
 					[pscustomobject]@{
-						Server = $db.Group.Server | Select-Object -First 1
+						ComputerName = $db.Group.ComputerName | Select-Object -First 1
+						InstanceName = $db.Group.InstanceName | Select-Object -First 1
+						SqlInstance = $db.Group.SqlInstance | Select-Object -First 1
 						Database = $db.Name
 						AvgThroughputMB = [System.Math]::Round($measuremb.Average, 2)
 						AvgSizeMB = [System.Math]::Round($measuresize.Average, 2)
@@ -173,7 +184,7 @@ Will fill this in
 						MinBackupDate = $measurestart.Minimum
 						MaxBackupDate = $measureend.Maximum
 						BackupCount = $db.Count
-					}
+					} | Select-DefaultView -ExcludeProperty ComputerName, InstanceName
 				}
 			}
 		}

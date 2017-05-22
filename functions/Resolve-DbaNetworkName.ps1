@@ -1,4 +1,4 @@
-﻿Function Resolve-DbaNetworkName
+Function Resolve-DbaNetworkName
 {
   <#
       .SYNOPSIS
@@ -85,7 +85,9 @@
 				$Computer = $env:COMPUTERNAME
 			}
 			
-			$Computer = $Computer.Split('\')[0]
+			$Computer = $Computer.Split('\\')[0]
+			$Computer = ($Computer -Split ('\:'))[0]
+			$Computer = ($Computer.Split('\,'))[0]
 			
 			if ($Turbo)
 			{
@@ -158,7 +160,7 @@
 			}
 			else
 			{
-				Write-Warning "$functionName - No IP Address returned from $Computer"
+				Write-Verbose "$functionName - No IP Address returned from $Computer"
 				Write-Verbose "$functionName - Using .NET.Dns to resolve IP Address"
 				return (Resolve-DbaNetworkName -ComputerName $Computer -Turbo)
 			}
@@ -171,12 +173,12 @@
 					Write-Verbose "$functionName - Getting computer information from $Computer via CIM (WSMan)"
 					if ($Credential)
 					{
-						$CIMsession = New-CimSession -ComputerName $Computer -ErrorAction SilentlyContinue -Credential $Credential
-						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -CimSession $CIMsession -ErrorAction SilentlyContinue
+						$CIMsession = New-CimSession -ComputerName $Computer -ErrorAction Stop -Credential $Credential
+						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -CimSession $CIMsession -ErrorAction Stop
 					}
 					else
 					{
-						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -ComputerName $Computer -ErrorAction SilentlyContinue
+						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -ComputerName $Computer -ErrorAction Stop
 					}
 				}
 				catch
@@ -191,15 +193,15 @@
 						$sessionoption = New-CimSessionOption -Protocol DCOM
 						if ($Credential)
 						{
-							$CIMsession = New-CimSession -ComputerName $Computer -SessionOption $sessionoption -ErrorAction SilentlyContinue -Credential $Credential
+							$CIMsession = New-CimSession -ComputerName $Computer -SessionOption $sessionoption -ErrorAction Stop -Credential $Credential
 							
 						}
 						else
 						{
-							$CIMsession = New-CimSession -ComputerName $Computer -SessionOption $sessionoption -ErrorAction SilentlyContinue
+							$CIMsession = New-CimSession -ComputerName $Computer -SessionOption $sessionoption -ErrorAction Stop
 						}
 						
-						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -CimSession $CIMsession
+						$conn = Get-CimInstance -Query "Select * FROM Win32_computersystem" -CimSession $CIMsession -ErrorAction Stop
 					}
 					catch
 					{
