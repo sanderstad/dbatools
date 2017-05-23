@@ -4,7 +4,7 @@ function Copy-DbaAgentAlert {
 		Copy-DbaAgentAlert migrates alerts from one SQL Server to another.
 
 	.DESCRIPTION
-		By default, all alerts are copied. The -Alerts parameter is autopopulated for command-line completion and can be used to copy only specific alerts.
+		By default, all alerts are copied. The -Alert parameter is autopopulated for command-line completion and can be used to copy only specific alerts.
 
 		If the alert already exists on the destination, it will be skipped unless -Force is used.
 
@@ -76,9 +76,9 @@ function Copy-DbaAgentAlert {
 	[cmdletbinding(DefaultParameterSetName = "Default", SupportsShouldProcess = $true)]
 	param (
 		[parameter(Mandatory = $true)]
-		[object]$Source,
+		[DbaInstanceParameter]$Source,
 		[parameter(Mandatory = $true)]
-		[object]$Destination,
+		[DbaInstanceParameter]$Destination,
 		[PSCredential][System.Management.Automation.CredentialAttribute()]
 		$SourceSqlCredential,
 		[PSCredential][System.Management.Automation.CredentialAttribute()]
@@ -87,13 +87,11 @@ function Copy-DbaAgentAlert {
 		[switch]$Force,
 		[switch]$Silent
 	)
-	DynamicParam { if ($source) { return (Get-ParamSqlAlerts -SqlServer $Source -SqlCredential $SourceSqlCredential) } }
+
 
 	begin {
-		$alerts = $psboundparameters.Alerts
-
-		$sourceServer = Connect-SqlServer -SqlServer $Source -SqlCredential $SourceSqlCredential
-		$destServer = Connect-SqlServer -SqlServer $Destination -SqlCredential $DestinationSqlCredential
+		$sourceServer = Connect-SqlInstance -SqlInstance $Source -SqlCredential $SourceSqlCredential
+		$destServer = Connect-SqlInstance -SqlInstance $Destination -SqlCredential $DestinationSqlCredential
 
 		$source = $sourceServer.DomainInstanceName
 		$Destination = $destServer.DomainInstanceName

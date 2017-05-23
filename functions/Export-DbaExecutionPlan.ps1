@@ -72,7 +72,7 @@ Exports all execution plans for databases db1 and db2 on sqlserve2014a since Jul
 	Param (
 		[parameter(ParameterSetName = 'NotPiped', Mandatory)]
 		[Alias("ServerInstance", "SqlServer")]
-		[string[]]$SqlInstance,
+		[DbaInstanceParameter[]]$SqlInstance,
 		[parameter(ParameterSetName = 'NotPiped')]
 		[Alias("Credential")]
 		[PsCredential]$SqlCredential,
@@ -174,7 +174,7 @@ Exports all execution plans for databases db1 and db2 on sqlserve2014a since Jul
 		{
 			try
 			{
-				$server = Connect-SqlServer -SqlServer $instance -SqlCredential $Credential
+				$server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $Credential
 				
 				if ($server.VersionMajor -lt 9)
 				{
