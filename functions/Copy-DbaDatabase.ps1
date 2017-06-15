@@ -59,7 +59,7 @@ Specifies the network location for the backup files. The Sql Service service acc
 .PARAMETER Database
 Migrates ONLY specified databases. This list is auto-populated for tab completion. Multiple databases are allowed.
 
-.PARAMETER Exclude
+.PARAMETER ExcludeDatabase
 Excludes specified databases when performing -AllDatabases migrations. This list is auto-populated for tab completion.
 
 .PARAMETER SetSourceReadOnly
@@ -132,7 +132,7 @@ Databases will be migrated from sqlserver2014a to sqlcluster using the detach/co
 
 
 .EXAMPLE   
-Copy-DbaDatabase -Source sqlserver2014a -Destination sqlcluster -Exclude Northwind, pubs -IncludeSupportDbs -Force -BackupRestore -NetworkShare \\fileshare\sql\migration
+Copy-DbaDatabase -Source sqlserver2014a -Destination sqlcluster -ExcludeDatabase Northwind, pubs -IncludeSupportDbs -Force -BackupRestore -NetworkShare \\fileshare\sql\migration
 
 Migrates all user databases except for Northwind and pubs by using backup/restore (copy-only). Backup files are stored in \\fileshare\sql\migration. If the database exists on the destination, it will be dropped prior to attach.
 
@@ -147,7 +147,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 		[DbaInstanceParameter]$Destination,
 		[Alias("Databases")]
 		[object[]]$Database,
-		[object[]]$Exclude,
+		[object[]]$ExcludeDatabase,
 		[Alias("All")]
 		[parameter(Position = 4, ParameterSetName = "DbBackup")]
 		[parameter(Position = 4, ParameterSetName = "DbAttachDetach")]
@@ -549,8 +549,6 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 	}
 	
 	process {
-		$copyonly = !$NoCopyOnly
-		
 		if (($AllDatabases -or $IncludeSupportDbs -or $Database) -and !$DetachAttach -and !$BackupRestore) {
 			throw "You must specify -DetachAttach or -BackupRestore when migrating databases."
 		}
@@ -570,6 +568,13 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 		$sourceserver = Connect-SqlInstance -SqlInstance $Source -SqlCredential $SourceSqlCredential
 		$destserver = Connect-SqlInstance -SqlInstance $Destination -SqlCredential $DestinationSqlCredential
 		
+		$destVersionLower = $destserver.VersionMajor -lt $sourceserver.VersionMajor
+		$destVersionMinorLow = ($destserver.VersionMajor -eq 10 -and $sourceserver.VersionMajor -eq 10) -and ($destserver.VersionMinor -lt $sourceserver.VersionMinor)
+		if ($destVersionLower -or $destVersionMinorLow) {
+			Stop-Function -Message "Error: copy database cannot be made from newer $($sourceserver.VersionString) to older $($destserver.VersionString) SQL Server version"
+			return
+		}
+
 		if ($DetachAttach) {
 			if ($sourceserver.netname -eq $env:COMPUTERNAME -or $destserver.netname -eq $env:COMPUTERNAME) {
 				If (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
@@ -707,7 +712,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 			}
 		}
 		
-		if (($Database -or $Exclude -or $IncludeSupportDbs) -and (!$DetachAttach -and !$BackupRestore)) {
+		if (($Database -or $ExcludeDatabase -or $IncludeSupportDbs) -and (!$DetachAttach -and !$BackupRestore)) {
 			Stop-Function -Message "You did not select a migration method. Please use -BackupRestore or -DetachAttach"
 			return
 		}
@@ -766,7 +771,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 		
 		$alldbelapsed = [System.Diagnostics.Stopwatch]::StartNew()
 		
-		if ($AllDatabases -or $Exclude.length -gt 0 -or $IncludeSupportDbs -or $Database.length -gt 0) {
+		if ($AllDatabases -or $ExcludeDatabase.length -gt 0 -or $IncludeSupportDbs -or $Database.length -gt 0) {
 			foreach ($smodb in $databaselist) {
 				$dbelapsed = [System.Diagnostics.Stopwatch]::StartNew()
 				$dbname = $smodb.name
@@ -775,7 +780,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 				Write-Output "`n######### Database: $dbname #########"
 				$dbstart = Get-Date
 				
-				if ($exclude -contains $dbname) {
+				if ($ExcludeDatabase -contains $dbname) {
 					Write-Output "$dbname excluded. Skipping."
 					continue
 				}
@@ -880,7 +885,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 						
 						#$backupresult = Backup-SqlDatabase $sourceserver $dbname $backupfile $numberfiles
 						
-						$backupTmpResult = Backup-DbaDatabase -SqlInstance $sourceserver -Database $dbname -backupDirectory (Split-Path -Path $backupFile -parent) -FileCount $numberfiles
+						$backupTmpResult = Backup-DbaDatabase -SqlInstance $sourceserver -Database $dbname -backupDirectory (Split-Path -Path $backupFile -parent) -FileCount $numberfiles -NoCopyOnly:$NoCopyOnly
 						$backupresult = $BackupTmpResult.BackupComplete
 						if ($backupresult -eq $false) {
 							$serviceaccount = $sourceserver.ServiceAccount
@@ -892,7 +897,7 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 						Write-Message -Level Verbose -Message "Resuse = $ReuseSourceFolderStructure"
 						$RestoreResultTmp = $backupTmpResult | Restore-DbaDatabase -SqlInstance $destserver -DatabaseName $dbname -ReuseSourceFolderStructure:$ReuseSourceFolderStructure -NoRecovery:$norecovery -TrustDbBackupHistory -WithReplace:$WithReplace
 						$restoreresult = $RestoreResultTmp.RestoreComplete
-						$RestoreResultTmp	
+						
 						if ($restoreresult -eq $true) {
 							Write-Output "Successfully restored $dbname to $destination"
 						}
@@ -907,9 +912,9 @@ It also includes the support databases (ReportServer, ReportServerTempDb, distri
 								continue
 							}
 						}
-                        if ($NoBackupCleanup -eq $false)
+                        if ($NoBackupCleanUp -ne $true)
                         {
-                            foreach ($backupfile in $backupTmpResult.BackupFiles)
+                            foreach ($backupfile in ($RestoreResultTmp.BackupFile -split ','))
                             {
                                 try		
                 				{		

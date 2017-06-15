@@ -287,7 +287,23 @@
 		'Remove-DbaMasterKey',
 		'Set-DbaCmConnection',
 		'Set-DbaTcpPort',
-		'Test-DbaCmConnection'
+		'Test-DbaCmConnection',
+		'New-DbaSqlConnectionStringBuilder',
+		'Get-DbaSqlInstanceProperty',
+		'Get-DbaSqlInstanceUserOption',
+		'New-DbaSqlConnectionString',
+		'Get-DbaAgentSchedule',
+		'Invoke-DbaLogShipping',
+		'Read-DbaTraceFile',
+		'New-DbaComputerCertificate',
+		'Get-DbaComputerCertificate',
+		'Add-DbaComputerCertificate',
+		'Get-DbaNetworkCertificate',
+		'Set-DbaNetworkCertificate',
+		'Remove-DbaNetworkCertificate',
+		'Enable-DbaForceNetworkEncryption',
+		'Disable-DbaForceNetworkEncryption',
+		'Get-DbaForceNetworkEncryption'
 	)
 	
 	# Cmdlets to export from this module

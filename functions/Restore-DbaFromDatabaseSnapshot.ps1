@@ -1,6 +1,6 @@
 #ValidationTags#FlowControl#
-Function Restore-DbaFromDatabaseSnapshot {
-<#
+function Restore-DbaFromDatabaseSnapshot {
+	<#
 .SYNOPSIS
 Restores databases from snapshots
 
@@ -18,6 +18,9 @@ Credential object used to connect to the SQL Server as a different user
 .PARAMETER Database
 Restores from the last snapshot databases with this names only. You can pass either Databases or Snapshots
 
+.PARAMETER ExcludeDatabase
+The database(s) to exclude - this list is auto populated from the server
+
 .PARAMETER Snapshot
 Restores databases from snapshots with this names only. You can pass either Databases or Snapshots
 
@@ -27,15 +30,15 @@ use -Force to let this command delete the ones not involved in the restore proce
 
 .PARAMETER WhatIf
 Shows what would happen if the command were to run
-	
+
 .PARAMETER Confirm
-Prompts for confirmation of every step. 
-	
+Prompts for confirmation of every step.
+
 .PARAMETER Silent
 Use this switch to disable any kind of verbose messages
 
 .NOTES
-Tags: DisasterRecovery, Snapshot, Backup, Restore
+Tags: DisasterRecovery, Snapshot, Backup, Restore, Database
 Author: niphlod
 
 Website: https://dbatools.io
@@ -66,15 +69,17 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 		$SqlCredential,
 		[Alias("Databases")]
 		[object[]]$Database,
+		[object[]]$ExcludeDatabase,
+		[object[]]$Snapshot,
 		[switch]$Force,
 		[switch]$Silent
 	)
-	
+
 	process {
-		if (!$snapshot -and !$database) {
+		if (!$Snapshot -and !$Database) {
 			Stop-Function -Message "You must specify either -Snapshot (to restore from) or -Database (to restore to)"
 		}
-		
+
 		foreach ($instance in $SqlInstance) {
 			Write-Message -Level Verbose -Message "Connecting to $instance"
 			try {
@@ -83,34 +88,38 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 			catch {
 				Stop-Function -Message "Failed to connect to: $instance" -ErrorRecord $_ -Target $instance -Continue -Silent $Silent
 			}
-			
+
 			$alldbs = $server.Databases
-			
+
 			# vault to hold all programmed operations from --> to
 			$operations = @()
-			
-			if (!$snapshot -and !$database) {
+
+			if (!$Snapshot -and !$Database) {
 				# Restore all databases from the latest snapshot
 				Write-Message -Level Verbose -Message "Selected all databases"
 				$dbs = $alldbs | Where-Object IsDatabaseSnapshot -eq $true
 			}
-			elseif ($database.count -gt 0) {
+			elseif ($Database) {
 				# Restore only these databases from their latest snapshot
 				Write-Message -Level Verbose -Message "Selected only databases"
-				$dbs = $alldbs | Where-Object { $database -contains $_.DatabaseSnapshotBaseName }
+				$dbs = $alldbs | Where-Object { $Database -contains $_.DatabaseSnapshotBaseName }
 			}
-			elseif ($snapshot.count -gt 0) {
+			elseif ($ExcludeDatabase) {
+				Write-Message -Level Verbose -Message "Excluded only databases"
+				$dbs = $alldbs | Where-Object { $ExcludeDatabase -notcontains $_.DatabaseSnapshotBaseName }
+			}
+			elseif ($Snapshot) {
 				# Restore databases from these snapshots
 				Write-Message -Level Verbose -Message "Selected only snapshots"
-				$dbs = $alldbs | Where-Object { $snapshot -contains $_.Name }
+				$dbs = $alldbs | Where-Object { $Snapshot -contains $_.Name }
 				$basedatabases = $dbs | Select-Object -ExpandProperty DatabaseSnapshotBaseName | Get-Unique
-				if ($basedatabases.count -ne $snapshot.count) {
+				if ($basedatabases.count -ne $Snapshot.count) {
 					Write-Message -Level Warning -Message "Multiple snapshots selected for the same database, skipping" -Continue
 				}
 			}
-			
+
 			$opshash = @{ }
-			
+
 			foreach ($db in $dbs) {
 				if ($db.DatabaseSnapshotBaseName -notin $opshash.Keys) {
 					if ($snapshot.count -gt 0) {
@@ -145,11 +154,11 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 				}
 				$operations += @{
 					'from' = $opshash[$dbname]['from'].Name
-					'to' = $dbname
+					'to'   = $dbname
 					'drop' = $drop
 				}
 			}
-			
+
 			foreach ($op in $operations) {
 				# Check if there are FS, because then a restore is not possible
 				$all_FS = $server.Databases[$op['to']].FileGroups | Where-Object FileGroupType -eq 'FileStreamDataFileGroup'
@@ -158,10 +167,10 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 					[PSCustomObject]@{
 						ComputerName = $server.NetName
 						InstanceName = $server.ServiceName
-						SqlInstance = $server.DomainInstanceName
-						Database = $op['to']
-						Status = 'Error'
-						Notes = "Database $($op['to']) has FileStream group(s). You cannot restore from snapshots"
+						SqlInstance  = $server.DomainInstanceName
+						Database     = $op['to']
+						Status       = 'Error'
+						Notes        = "Database $($op['to']) has FileStream group(s). You cannot restore from snapshots"
 					}
 					break
 				}
@@ -169,7 +178,7 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 				$orig_logproperties = $server.Databases[$op['to']].LogFiles | Select-Object id, size
 				# Drop what needs to be dropped
 				$operror = $false
-				
+
 				if ($op['drop'].count -gt 1 -and $Force -eq $false) {
 					$warnmsg = @()
 					$warnmsg += "The restore process for $($op['to']) from $($op['from']) needs to drop the following:"
@@ -198,14 +207,14 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 					[PSCustomObject]@{
 						ComputerName = $server.NetName
 						InstanceName = $server.ServiceName
-						SqlInstance = $server.DomainInstanceName
-						Database = $op['to']
-						Status = 'Error'
-						Notes = "Failed to drop some snapshots"
+						SqlInstance  = $server.DomainInstanceName
+						Database     = $op['to']
+						Status       = 'Error'
+						Notes        = "Failed to drop some snapshots"
 					}
 					break
 				}
-				
+
 				# Need a proper restore now
 				If ($Pscmdlet.ShouldProcess($server.DomainInstanceName, "Restore db $($op['to']) from $($op['from'])")) {
 					$query = "RESTORE DATABASE [$($op['to'])] FROM DATABASE_SNAPSHOT='$($op['from'])'"
@@ -224,10 +233,10 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 					[PSCustomObject]@{
 						ComputerName = $server.NetName
 						InstanceName = $server.ServiceName
-						SqlInstance = $server.DomainInstanceName
-						Database = $op['to']
-						Status = 'Error'
-						Notes = ''
+						SqlInstance  = $server.DomainInstanceName
+						Database     = $op['to']
+						Status       = 'Error'
+						Notes        = ''
 					}
 					break
 				}
@@ -245,13 +254,12 @@ Restores databases from snapshots named HR_snap_20161201 and Accounting_snap_201
 				[PSCustomObject]@{
 					ComputerName = $server.NetName
 					InstanceName = $server.ServiceName
-					SqlInstance = $server.DomainInstanceName
-					Database = $op['to']
-					Status = 'Restored'
-					Notes = 'Remember to take a backup now, and also to remove the snapshot if not needed'
+					SqlInstance  = $server.DomainInstanceName
+					Database     = $op['to']
+					Status       = 'Restored'
+					Notes        = 'Remember to take a backup now, and also to remove the snapshot if not needed'
 				}
 			}
 		}
 	}
 }
-
