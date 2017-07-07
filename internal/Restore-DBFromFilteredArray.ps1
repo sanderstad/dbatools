@@ -22,7 +22,7 @@ Function Restore-DBFromFilteredArray {
         [switch]$ScriptOnly,
         [switch]$VerifyOnly,
         [object]$filestructure,
-        [System.Management.Automation.PSCredential]$SqlCredential,
+        [PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
         [switch]$UseDestinationDefaultDirectories,
         [switch]$ReuseSourceFolderStructure,
         [switch]$Force,
@@ -43,7 +43,7 @@ Function Restore-DBFromFilteredArray {
     Begin {
         $FunctionName = (Get-PSCallstack)[0].Command
         Write-Message -Level Verbose -Message "Starting"
-
+        Write-Message -Level Verbose -Message "Parameters bound: $($PSBoundParameters.Keys -join ", ")"
 
 
         $InternalFiles = @()
@@ -85,12 +85,15 @@ Function Restore-DBFromFilteredArray {
             $DestinationLogDirectory = Get-SqlDefaultPaths $Server log
         }
 
-        If ($DbName -in $Server.databases.name -and ($ScriptOnly -eq $false -or $VerfiyOnly -eq $false)) {
-            If ($ReplaceDatabase -eq $true) {	
+        If ($DbName -in $Server.databases.name) {
+            if (($ScriptOnly -eq $true) -or ($verifyonly -eq $true)) {
+                Write-Message -Level Verbose -Message "No need to close db for this operation"
+            }
+            elseIf ($WithReplace -eq $true) {	
                 if ($Pscmdlet.ShouldProcess("Killing processes in $dbname on $SqlInstance as it exists and WithReplace specified  `n", "Cannot proceed if processes exist, ", "Database Exists and WithReplace specified, need to kill processes to restore")) {
                     try {
                         Write-Message -Level Verbose -Message "Set $DbName single_user to kill processes"
-                        Stop-DbaProcess -SqlInstance $Server -Database $Dbname -WarningAction Silentlycontinue
+                        Stop-DbaProcess -SqlInstance $Server -Databases $Dbname -WarningAction Silentlycontinue
                         Invoke-DbaSqlcmd -ServerInstance:$SqlInstance -Credential:$SqlCredential -query "Alter database $DbName set offline with rollback immediate; alter database $DbName set restricted_user; Alter database $DbName set online with rollback immediate" -database master
                         $server.ConnectionContext.Connect()
                     }
@@ -100,12 +103,12 @@ Function Restore-DBFromFilteredArray {
                 } 
             }
             else {
-                Write-Warning "$FunctionName - Database $DbName exists and will not be overwritten without the WithReplace switch"
+                Stop-Function -Message "$Dbname exists and WithReplace not specified, stopping" -Silent $silent 
                 return
             }
-
         }
 
+        
         $MissingFiles = @()
         if ($TrustDbBackupHistory) {
             Write-Message -Level Verbose -Message "Trusted File checks"
@@ -395,9 +398,10 @@ Function Restore-DBFromFilteredArray {
                     Write-Message -Level Verbose -Message "Succeeded, Closing Server connection"
                     $server.ConnectionContext.Disconnect()
                 }
-            }	
-        }
-        if ($server.ConnectionContext.exists) {
+			}
+			Write-Progress -id 1 -Activity "Restoring" -Completed
+		}
+		if ($server.ConnectionContext.exists) {
             $server.ConnectionContext.Disconnect()
         }
     }

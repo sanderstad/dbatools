@@ -11,7 +11,7 @@
 	RootModule = 'dbatools.psm1'
 	
 	# Version number of this module.
-	ModuleVersion = '0.8.957'
+	ModuleVersion = '0.8.961'
 	
 	# ID used to uniquely identify this module
 	GUID = '9d139310-ce45-41ce-8e8b-d76335aa1789'
@@ -310,7 +310,27 @@
 		'Install-DbaFirstResponderKit',
 		'Backup-DbaDatabaseMasterKey',
 		'Get-DbaAgentJobHistory',
-		'Get-DbaSsisEnvironmentVariable'
+		'Get-DbaSsisEnvironmentVariable',
+		'Get-DbaSqlManagementObject',
+		'Test-DbaSqlManagementObject',
+		'Get-DbaMaintenanceSolutionLog',
+		'Invoke-DbaLogShippingRecovery',
+		'Sync-DbaLoginPermission',
+		'Find-DbaTrigger',
+		'Find-DbaView',
+		'Invoke-DbaDatabaseUpgrade',
+		'Get-DbaDatabaseUser',
+		'Get-DbaWindowsLog',
+		'Get-DbaSqlLog',
+		'Get-DbaAgentLog',
+		'Get-DbaDbMailLog',
+		'Get-DbaDbMailHistory',
+		'Get-DbaDatabaseView',
+		'Get-DbaDatabaseUdf',
+		'Get-DbaDatabasePartitionFunction',
+		'Get-DbaDatabasePartitionScheme',
+		'Get-DbaErrorLog',
+		'Get-DbaDefaultPath'
 	)
 	
 	# Cmdlets to export from this module
@@ -386,11 +406,7 @@
 	'Test-SqlPath',
 	'Test-SqlTempDbConfiguration',
 	'Watch-SqlDbLogin',
-	'Invoke-Sqlcmd2',
-	'Get-DbaSqlManagementObject',
-	'Get-DbaMaintenanceSolutionLog',
-	'Invoke-DbaLogShippingRecovery',
-	'Sync-DbaLoginPermission'
+	'Invoke-Sqlcmd2'
 	
 	# List of all modules packaged with this module
 	ModuleList = @()

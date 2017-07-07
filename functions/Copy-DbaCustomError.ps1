@@ -124,9 +124,9 @@ function Copy-DbaCustomError {
 			$copyCustomErrorStatus = [pscustomobject]@{
 				SourceServer        = $sourceServer.Name
 				DestinationServer   = $destServer.Name
-				Name                = $curretnCustomError
+				Name                = $currentCustomError
 				Status              = $null
-				DateTime            = [sqlcollective.dbatools.Utility.DbaDateTime](Get-Date)
+				DateTime            = [DbaDateTime](Get-Date)
 			}
 
 			if ( $CustomError -and ($customErrorId -notin $CustomError -or $customErrorId -in $ExcludeCustomError) ) {
