@@ -7,7 +7,7 @@ function Get-DbaLinkedServer {
 			Retrieves information about each linked server on the instance
 
 		.PARAMETER SqlInstance
-			SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and recieve pipeline input to allow the function
+			SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and receive pipeline input to allow the function
 			to be executed against multiple SQL Server instances.
 
 		.PARAMETER SqlCredential
@@ -36,7 +36,7 @@ function Get-DbaLinkedServer {
 		[Parameter(Mandatory, ValueFromPipeline)]
 		[Alias("ServerInstance", "SqlServer")]
 		[DbaInstanceParameter[]]$SqlInstance,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
+		[PSCredential]$SqlCredential,
 		[switch]$Silent
 	)
 	foreach ($Instance in $SqlInstance) {
@@ -55,11 +55,11 @@ function Get-DbaLinkedServer {
 		}
 
 		foreach ($ls in $lservers) {
-			Add-Member -InputObject $ls -MemberType NoteProperty -Name ComputerName -value $server.NetName
-			Add-Member -InputObject $ls -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
-			Add-Member -InputObject $ls -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
-			Add-Member -InputObject $ls -MemberType NoteProperty -Name Impersonate -value $ls.LinkedServerLogins.Impersonate
-			Add-Member -InputObject $ls -MemberType NoteProperty -Name RemoteUser -value $ls.LinkedServerLogins.RemoteUser
+			Add-Member -Force -InputObject $ls -MemberType NoteProperty -Name ComputerName -value $server.NetName
+			Add-Member -Force -InputObject $ls -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
+			Add-Member -Force -InputObject $ls -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
+			Add-Member -Force -InputObject $ls -MemberType NoteProperty -Name Impersonate -value $ls.LinkedServerLogins.Impersonate
+			Add-Member -Force -InputObject $ls -MemberType NoteProperty -Name RemoteUser -value $ls.LinkedServerLogins.RemoteUser
 
 			Select-DefaultView -InputObject $ls -Property ComputerName, InstanceName, SqlInstance, Name, 'DataSource as RemoteServer', ProductName, Impersonate, RemoteUser, 'DistPublisher as Publisher', Distributor, DateLastModified
 		}

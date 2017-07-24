@@ -1,5 +1,8 @@
-## needs some proper tests for the function here
-Describe "Get-DbaAgentJobOutputFile Unit Tests" -Tag 'Unittests' {
+$commandname = $MyInvocation.MyCommand.Name.Replace(".ps1","")
+Write-Host -Object "Running $PSCommandpath" -ForegroundColor Cyan
+. "$PSScriptRoot\constants.ps1"
+
+Describe "$commandname Unit Tests" -Tag 'UnitTests' {
     Context "Input Validation" {
 		It 'SqlInstance parameter is empty' {
             { Get-DbaAgentJobOutputFile -SqlInstance '' -WarningAction Stop 3> $null } | Should Throw

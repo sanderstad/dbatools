@@ -12,7 +12,7 @@ FUNCTION Get-DbaAgentSchedule
 	This can be a collection and receive pipeline input.
 
 	.PARAMETER SqlCredential
-	PSCredential object to connect as. If not specified, currend Windows login will be used.
+	PSCredential object to connect as. If not specified, current Windows login will be used.
 
 	.PARAMETER Silent
 	Use this switch to disable any kind of verbose messages
@@ -41,7 +41,7 @@ FUNCTION Get-DbaAgentSchedule
 		[parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
 		[Alias("ServerInstance", "Instance", "SqlServer")]
 		[object[]]$SqlInstance,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
+		[PSCredential]$SqlCredential,
 		[switch]$Silent
 	)
 	
@@ -67,9 +67,9 @@ FUNCTION Get-DbaAgentSchedule
 
 			foreach ($schedule in $server.JobServer.SharedSchedules)
 			{
-				Add-Member -InputObject $schedule -MemberType NoteProperty ComputerName -value $schedule.Parent.Parent.NetName
-				Add-Member -InputObject $schedule -MemberType NoteProperty InstanceName -value $schedule.Parent.Parent.ServiceName
-				Add-Member -InputObject $schedule -MemberType NoteProperty SqlInstance  -value $schedule.Parent.Parent.DomainInstanceName
+				Add-Member -Force -InputObject $schedule -MemberType NoteProperty ComputerName -value $schedule.Parent.Parent.NetName
+				Add-Member -Force -InputObject $schedule -MemberType NoteProperty InstanceName -value $schedule.Parent.Parent.ServiceName
+				Add-Member -Force -InputObject $schedule -MemberType NoteProperty SqlInstance  -value $schedule.Parent.Parent.DomainInstanceName
 
 				Select-DefaultView -InputObject $schedule -Property $defaults
 			}

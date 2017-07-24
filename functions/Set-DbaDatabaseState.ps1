@@ -20,10 +20,10 @@ The SQL Server that you're connecting to
 Credential object used to connect to the SQL Server as a different user
 
 .PARAMETER Database
-The database(s) to process - this list is autopopulated from the server. If unspecified, all databases will be processed.
+The database(s) to process - this list is auto-populated from the server. If unspecified, all databases will be processed.
 
 .PARAMETER ExcludeDatabase
-The database(s) to exclude - this list is autopopulated from the server
+The database(s) to exclude - this list is auto-populated from the server
 
 .PARAMETER AllDatabases
 This is a parameter that was included for safety, so you don't accidentally set options on all databases without specifying
@@ -110,7 +110,7 @@ Sets the HR database as SINGLE_USER, dropping all other connections (and rolling
 		[Alias("ServerInstance", "SqlServer")]
 		[DbaInstanceParameter[]]$SqlInstance,
 		[Alias("Credential")]
-		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		[PSCredential]
 		$SqlCredential,
 		[Alias("Databases")]
 		[object[]]$Database,
@@ -160,7 +160,7 @@ Sets the HR database as SINGLE_USER, dropping all other connections (and rolling
 					# than the immediate rollback
 					$sqlinstance.KillAllProcesses($dbname)
 				}
-				$null = $sqlinstance.ConnectionContext.ExecuteNonQuery($sql)
+				$null = $sqlinstance.Query($sql)
 			}
 			catch {
 				Write-Exception $_
@@ -424,7 +424,7 @@ Sets the HR database as SINGLE_USER, dropping all other connections (and rolling
 					try {
 						$sql = "EXEC master.dbo.sp_detach_db N$db"
 						Write-Verbose $sql
-						$null = $server.ConnectionContext.ExecuteNonQuery($sql)
+						$null = $server.Query($sql)
 						$newstate.Status = 'DETACHED'
 					}
 					catch {

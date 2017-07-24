@@ -8,7 +8,7 @@ Gets SQL Credential information for each instance(s) of SQL Server.
  The Get-DbaCredential command gets SQL Credential information for each instance(s) of SQL Server.
 	
 .PARAMETER SqlInstance
-SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and recieve pipeline input to allow the function
+SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and receive pipeline input to allow the function
 to be executed against multiple SQL Server instances.
 
 .PARAMETER SqlCredential
@@ -44,7 +44,7 @@ Returns all SQL Credentials for the local and sql2016 SQL Server instances
 	Param (
 		[parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
 		[DbaInstanceParameter]$SqlInstance,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
+		[PSCredential]$SqlCredential,
 		[switch]$Silent
 	)
 	
@@ -65,9 +65,9 @@ Returns all SQL Credentials for the local and sql2016 SQL Server instances
 			
 			foreach ($credential in $server.Credentials)
 			{
-				Add-Member -InputObject $credential -MemberType NoteProperty -Name ComputerName -value $credential.Parent.NetName
-				Add-Member -InputObject $credential -MemberType NoteProperty -Name InstanceName -value $credential.Parent.ServiceName
-				Add-Member -InputObject $credential -MemberType NoteProperty -Name SqlInstance -value $credential.Parent.DomainInstanceName
+				Add-Member -Force -InputObject $credential -MemberType NoteProperty -Name ComputerName -value $credential.Parent.NetName
+				Add-Member -Force -InputObject $credential -MemberType NoteProperty -Name InstanceName -value $credential.Parent.ServiceName
+				Add-Member -Force -InputObject $credential -MemberType NoteProperty -Name SqlInstance -value $credential.Parent.DomainInstanceName
 				
 				Select-DefaultView -InputObject $credential -Property ComputerName, InstanceName, SqlInstance, ID, Name, Identity, MappedClassType, ProviderName
 			}

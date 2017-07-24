@@ -17,10 +17,10 @@ Credential object used to connect to the SQL Server as a different user
 Creates snapshot for all eligible databases
 
 .PARAMETER Database
-The database(s) to process - this list is autopopulated from the server. If unspecified, all databases will be processed.
+The database(s) to process - this list is auto-populated from the server. If unspecified, all databases will be processed.
 
 .PARAMETER ExcludeDatabase
-The database(s) to exclude - this list is autopopulated from the server
+The database(s) to exclude - this list is auto-populated from the server
 
 .PARAMETER WhatIf
 Shows what would happen if the command were to run
@@ -88,7 +88,7 @@ Creates snapshots for HR and Accounting databases, storing files under the F:\sn
 		[Alias("ServerInstance", "SqlServer")]
 		[DbaInstanceParameter[]]$SqlInstance,
 		[Alias("Credential")]
-		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		[PSCredential]
 		$SqlCredential,
 		[Alias("Databases")]
 		[object[]]$Database,
@@ -269,7 +269,7 @@ Creates snapshots for HR and Accounting databases, storing files under the F:\sn
 							Database = $SnapDB.Name
 							SnapshotOf = $SnapDB.DatabaseSnapshotBaseName
 							SizeMB = [Math]::Round($SnapDB.Size, 2) ##FIXME, should use the stats for sparse files
-							DatabaseCreated = $SnapDB.createDate
+							DatabaseCreated = [dbadatetime]$SnapDB.createDate
 							PrimaryFilePath = $SnapDB.PrimaryFilePath
 							Status = 'Created'
 							Notes = $null
@@ -284,7 +284,7 @@ Creates snapshots for HR and Accounting databases, storing files under the F:\sn
 							$server.Databases.Refresh()
 							if ($SnapName -notin $server.Databases.Name) {
 								# previous creation failed completely, snapshot is not there already
-								$null = $server.ConnectionContext.ExecuteNonQuery($sql[0])
+								$null = $server.Query($sql[0])
 								$server.Databases.Refresh()
 								$SnapDB = $server.Databases[$Snapname]
 							}

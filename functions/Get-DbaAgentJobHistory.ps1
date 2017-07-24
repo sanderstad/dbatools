@@ -11,7 +11,7 @@
             https://msdn.microsoft.com/en-us/library/microsoft.sqlserver.management.smo.agent.jobhistoryfilter(v=sql.120).aspx
 
 		.PARAMETER SqlInstance
-			SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and recieve pipeline input to allow the function
+			SQL Server name or SMO object representing the SQL Server to connect to. This can be a collection and receive pipeline input to allow the function
 			to be executed against multiple SQL Server instances.
 
 		.PARAMETER SqlCredential
@@ -21,7 +21,7 @@
 			The name of the job from which the history is wanted. If unspecified, all jobs will be processed.
 
 		.PARAMETER ExcludeJob
-		The job(s) to exclude - this list is auto populated from the server
+		The job(s) to exclude - this list is auto-populated from the server
 	
 		.PARAMETER StartDate
 			The DateTime starting from which the history is wanted. If unspecified, all available records will be processed.
@@ -95,7 +95,7 @@
 		[parameter(Mandatory, ValueFromPipeline, ParameterSetName = "Server")]
 		[Alias("ServerInstance", "SqlServer")]
 		[DbaInstanceParameter[]]$SqlInstance,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		[PSCredential]
 		$SqlCredential,
 		[object[]]$Job,
 		[object[]]$ExcludeJob,
@@ -136,9 +136,9 @@
 				}
 				
 				foreach ($execution in $executions) {
-					Add-Member -InputObject $execution -MemberType NoteProperty -Name ComputerName -value $server.NetName
-					Add-Member -InputObject $execution -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
-					Add-Member -InputObject $execution -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
+					Add-Member -Force -InputObject $execution -MemberType NoteProperty -Name ComputerName -value $server.NetName
+					Add-Member -Force -InputObject $execution -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
+					Add-Member -Force -InputObject $execution -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
 					
 					Select-DefaultView -InputObject $execution -Property ComputerName, InstanceName, SqlInstance, 'JobName as Job', StepName, RunDate, RunDuration, RunStatus
 				}

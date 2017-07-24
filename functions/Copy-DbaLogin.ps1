@@ -33,10 +33,10 @@ function Copy-DbaLogin {
 			To connect as a different Windows user, run PowerShell as that user.
 
 		.PARAMETER Login
-			The login(s) to process - this list is autopopulated from the server. If unspecified, all logins will be processed.
+			The login(s) to process - this list is auto-populated from the server. If unspecified, all logins will be processed.
 
 		.PARAMETER ExcludeLogin
-			The login(s) to exclude - this list is autopopulated from the server
+			The login(s) to exclude - this list is auto-populated from the server
 
 		.PARAMETER SyncOnly
 			Syncs only SQL Server login permissions, roles, etc. Does not add or drop logins or users. If a matching login does not exist on the destination, the login will be skipped.
@@ -123,11 +123,11 @@ function Copy-DbaLogin {
 	Param (
 		[parameter(Mandatory = $true, ValueFromPipeline = $true)]
 		[DbaInstanceParameter]$Source,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		[PSCredential]
 		$SourceSqlCredential,
 		[parameter(Mandatory = $true)]
 		[DbaInstanceParameter]$Destination,
-		[PSCredential][System.Management.Automation.CredentialAttribute()]
+		[PSCredential]
 		$DestinationSqlCredential,
 		[object[]]$Login,
 		[object[]]$ExcludeLogin,
@@ -219,7 +219,7 @@ function Copy-DbaLogin {
 					continue
 				}
 
-				if ($Login -ne $null -and $force) {
+				if ($destServer.Logins.Item($userName) -ne $null -and $force) {
 					if ($userName -eq $destServer.ServiceAccount) {
 						Write-Message -Level Warning -Message "$userName is the destination service account. Skipping drop."
 
@@ -296,8 +296,18 @@ function Copy-DbaLogin {
 					$destLogin.Language = $sourceLogin.Language
 
 					if ($destServer.databases[$defaultDb] -eq $null) {
-						Write-Message -Level Warning -Message "$defaultDb does not exist on destination. Setting defaultdb to master."
-						$defaultDb = "master"
+						# we end up here when the default database on source doesn't exist on dest
+						# if source login is a sysadmin, then set the default database to master
+						# if not, set it to tempdb (see #303)
+						$OrigdefaultDb = $defaultDb
+						try { $sourcesysadmins = $sourceServer.roles['sysadmin'].EnumMemberNames() }
+						catch { $sourcesysadmins = $sourceServer.roles['sysadmin'].EnumServerRoleMembers() }
+						if ($sourcesysadmins -contains $userName) {
+							$defaultDb = "master"
+						} else {
+							$defaultDb = "tempdb"
+						}
+						Write-Message -Level Warning -Message "$OrigdefaultDb does not exist on destination. Setting defaultdb to $defaultDb."
 					}
 
 					Write-Message -Level Verbose -Message "Set $userName defaultdb to $defaultDb"
@@ -357,7 +367,7 @@ function Copy-DbaLogin {
 												DEFAULT_DATABASE = [$defaultDb], CHECK_POLICY = $checkpolicy,
 												CHECK_EXPIRATION = $checkexpiration, DEFAULT_LANGUAGE = [$($sourceLogin.Language)]"
 
-								$null = $destServer.ConnectionContext.ExecuteNonQuery($sql)
+								$null = $destServer.Query($sql)
 
 								$destLogin = $destServer.logins[$userName]
 								Write-Message -Level Verbose -Message "Successfully added $userName to $destination"
@@ -484,13 +494,6 @@ function Copy-DbaLogin {
 			}
 		}
 
-		$elapsed = [System.Diagnostics.Stopwatch]::StartNew()
-		$started = Get-Date
-
-		if ($Pscmdlet.ShouldProcess("console", "Showing time started message")) {
-			Write-Message -Level Verbose -Message "Migration started: $started"
-		}
-
 		if ($Login) {
 			$LoginParms += @{ 'Logins' = $Login }
 		}
@@ -503,6 +506,7 @@ function Copy-DbaLogin {
 
 		return $serverParms
 	}
+	
 	process {
 		if ($PipeLogin.Length -gt 0) {
 			$Source = $PipeLogin[0].Parent.Name
@@ -510,12 +514,12 @@ function Copy-DbaLogin {
 		}
 
 		if ($SyncOnly) {
-			Sync-DbaSqlLoginPermission -Source $Source -Destination $Destination $loginparms
+			Sync-DbaSqlLoginPermission -Source $sourceServer -Destination $destServer $loginparms
 			return
 		}
 
 		if ($OutFile) {
-			Export-SqlLogin -SqlInstance $source -FilePath $OutFile $loginparms
+			Export-SqlLogin -SqlInstance $sourceServer -FilePath $OutFile $loginparms
 			return
 		}
 
@@ -539,12 +543,6 @@ function Copy-DbaLogin {
 		}
 	}
 	end {
-		if ($Pscmdlet.ShouldProcess("console", "Showing time elapsed message")) {
-			Write-Message -Level Verbose -Message "Login migration completed: $(Get-Date)"
-			$totalTime = ($elapsed.Elapsed.toString().Split(".")[0])
-
-			Write-Message -Level Verbose -Message "Total elapsed time: $totalTime"
-		}
 		Test-DbaDeprecation -DeprecatedOn "1.0.0" -Silent:$false -Alias Copy-SqlLogin
 	}
 }

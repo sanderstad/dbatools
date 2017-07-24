@@ -1,4 +1,8 @@
-Describe 'Test-DbaMaxMemory Unit Tests' -Tag 'Unittests' {
+$commandname = $MyInvocation.MyCommand.Name.Replace(".ps1","")
+Write-Host -Object "Running $PSCommandpath" -ForegroundColor Cyan
+. "$PSScriptRoot\constants.ps1"
+
+Describe "$commandname Unit Tests" -Tag 'UnitTests' {
     InModuleScope dbatools {
         Context 'Validate input arguments' {
             It 'No "SQL Server" Windows service is running on the host' {
@@ -24,7 +28,7 @@ Describe 'Test-DbaMaxMemory Unit Tests' -Tag 'Unittests' {
                 # Mocking Get-Service using PSCustomObject does not work. It needs to be mocked as object instead.               
                 $service = New-Object System.ServiceProcess.ServiceController
                 $service.DisplayName = 'SQL Server (ABC)'
-                Add-Member -InputObject $service -MemberType NoteProperty -Name Status -Value 'Running' -Force
+                Add-Member -Force -InputObject $service -MemberType NoteProperty -Name Status -Value 'Running'
                 return $service
             }
             

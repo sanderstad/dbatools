@@ -203,7 +203,7 @@ function Restore-DbaDatabase {
 					-NoRecovery -WithReplace -StandbyDirectory C:\dbatools\standby 
 
 		#It's in standby so we can peek at it
-		Invoke-DbaSqlCmd -ServerInstance server\instance1 -Query "select top 1 * from Restored.dbo.steps order by dt desc"
+		Invoke-Sqlcmd2 -ServerInstance server\instance1 -Query "select top 1 * from Restored.dbo.steps order by dt desc"
 
 		#Not quite there so let's roll on a bit:
 		$files | Restore-DbaDatabase -SqlServer server\instance1 `
@@ -211,7 +211,7 @@ function Restore-DbaDatabase {
 					-continue -WithReplace -RestoreTime (get-date "15:09:30 22/05/2017") `
 					-StandbyDirectory C:\dbatools\standby
 
-		Invoke-DbaSqlCmd -ServerInstance server\instance1 -Query "select top 1 * from restored.dbo.steps order by dt desc"
+		Invoke-Sqlcmd2 -ServerInstance server\instance1 -Query "select top 1 * from restored.dbo.steps order by dt desc"
 
 		Restore-DbaDatabase -SqlServer server\instance1 `
 					-DestinationFilePrefix prefix -DatabaseName Restored `
@@ -243,7 +243,7 @@ function Restore-DbaDatabase {
         [parameter(Mandatory = $true)]
         [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter]$SqlInstance,
-        [PSCredential][System.Management.Automation.CredentialAttribute()]$SqlCredential,
+        [PSCredential]$SqlCredential,
         [string]$DatabaseName,
         [String]$DestinationDataDirectory,
         [String]$DestinationLogDirectory,
@@ -279,29 +279,29 @@ function Restore-DbaDatabase {
         #region Validation
         $useDestinationDefaultDirectories = $true
         $paramCount = 0
-        if (Was-Bound "FileMapping") {
+        if (Test-Bound "FileMapping") {
             $paramCount += 1
         }
-        if (Was-Bound "ReuseSourceFolderStructure") {
+        if (Test-Bound "ReuseSourceFolderStructure") {
             $paramCount += 1
         }
-        if (Was-Bound "DestinationDataDirectory") {
+        if (Test-Bound "DestinationDataDirectory") {
             $paramCount += 1
         }
         if ($paramCount -gt 1) {
             Stop-Function -Category InvalidArgument -Message "You've specified incompatible Location parameters. Please only specify one of FileMapping, ReuseSourceFolderStructure or DestinationDataDirectory"
             return
         }
-        if (($ReplaceDbNameInFile) -and !(Was-Bound "DatabaseName")) {
+        if (($ReplaceDbNameInFile) -and !(Test-Bound "DatabaseName")) {
             Stop-Function -Category InvalidArgument -Message "To use ReplaceDbNameInFile you must specify DatabaseName"
             return
         }
 		
-        if ((Was-Bound "DestinationLogDirectory") -and (Was-Bound "ReuseSourceFolderStructure")) {
+        if ((Test-Bound "DestinationLogDirectory") -and (Test-Bound "ReuseSourceFolderStructure")) {
             Stop-Function -Category InvalidArgument -Message "The parameters DestinationLogDirectory and UseDestinationDefaultDirectories are mutually exclusive"
             return
         }
-        if ((Was-Bound "DestinationLogDirectory") -and -not (Was-Bound "DestinationDataDirectory")) {
+        if ((Test-Bound "DestinationLogDirectory") -and -not (Test-Bound "DestinationDataDirectory")) {
             Stop-Function -Category InvalidArgument -Message "The parameter DestinationLogDirectory can only be specified together with DestinationDataDirectory"
             return
         }
@@ -577,7 +577,7 @@ function Restore-DbaDatabase {
                 Write-Message -Level Verbose -Message "Dbname set from backup = $DatabaseName"
             }
 			
-            if ((Test-DbaLsnChain -FilteredRestoreFiles $FilteredFiles -continue:$continue) -and (Test-DbaRestoreVersion -FilteredRestoreFiles $FilteredFiles -SqlInstance $SqlInstance -SqlCredential $SqlCredential)) {
+            if (($FilteredFiles.Count -gt 0) -and (Test-DbaLsnChain -FilteredRestoreFiles $FilteredFiles -continue:$continue) -and (Test-DbaRestoreVersion -FilteredRestoreFiles $FilteredFiles -SqlInstance $SqlInstance -SqlCredential $SqlCredential)) {
                 try {
                     $FilteredFiles | Restore-DBFromFilteredArray -SqlInstance $SqlInstance -DBName $databasename -SqlCredential $SqlCredential -RestoreTime $RestoreTime -DestinationDataDirectory $DestinationDataDirectory -DestinationLogDirectory $DestinationLogDirectory -NoRecovery:$NoRecovery -TrustDbBackupHistory:$TrustDbBackupHistory -ReplaceDatabase:$WithReplace -ScriptOnly:$OutputScriptOnly -FileStructure $FileMapping -VerifyOnly:$VerifyOnly -UseDestinationDefaultDirectories:$useDestinationDefaultDirectories -ReuseSourceFolderStructure:$ReuseSourceFolderStructure -DestinationFilePrefix $DestinationFilePrefix -MaxTransferSize $MaxTransferSize -BufferCount $BufferCount -BlockSize $BlockSize -StandbyDirectory $StandbyDirectory -continue:$continue -AzureCredential $AzureCredential -ReplaceDbNameInFile:$ReplaceDbNameInFile -DestinationFileSuffix $DestinationFileSuffix -OldDatabaseName $OldDatabaseName
                     $Completed = 'successfully'
